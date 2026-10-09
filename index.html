@@ -746,6 +746,34 @@ footer .bot button{background:none;border:0;color:inherit;font:inherit;letter-sp
     $$('[data-i18n]').forEach(function(el){ var k = el.dataset.i18n, d = l === 'en' ? EN : ES; if (d[k] !== undefined) el.textContent = d[k]; });
     $$('.lang button').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.lang === l); });
     buildHexes(); buildComb(); buildChoices(); buildTracklist();
+    xlate(l); xattrs(l); xmeta(l); tick(); renderBoot(); renderFrags(); renderVeils(); onScroll();
+    try { localStorage.setItem('sn_lang', l); } catch (e) {}
+  }
+  // static text nodes and attributes without data-i18n: ES original -> EN
+  var XT = {'Campo base':'Base camp','Hielo':'Ice','Oficina':'Office','Cada pieza en su lugar':'Every piece in its place','Campamento II · 6,400 m':'Camp II · 6,400 m','Todo el camino, visto desde arriba':'The whole route, seen from above','Chihuahua, México':'Chihuahua, Mexico','Sistemas':'Systems','Archivo':'Archive','Norte':'North','Contacto':'Contact','humedad 18%':'humidity 18%','altitud 8,848.86 m':'altitude 8,848.86 m','especies ∞':'species ∞','acuíferos':'aquifers','poblaciones':'populations','Vol. 1 · El Norte — Tracklist':'Vol. 1 · The North — Tracklist','visitante@sierranorth:~$':'visitor@sierranorth:~$'};
+  var AT = {'Coordenadas':'Coordinates','Principal':'Main','Idioma':'Language','Sonido ambiental':'Ambient sound','Fragmentos de información dispersa':'Scattered pieces of information','14 industrias, 1 sistema en vivo':'14 industries, 1 live system','Siete principios':'Seven principles','Despacho OS: dashboard para despachos jurídicos':'Despacho OS: dashboard for law firms','Despacho OS en escritorio':'Despacho OS on a desktop','Factura de honorarios con retenciones en Despacho OS':'Fee invoice with withholdings in Despacho OS','Sitio web conceptual de despacho':'Concept website for a law firm','Cerrar':'Close','Comando':'Command'};
+  function xlate(l){
+    var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), n, list = [];
+    while ((n = w.nextNode())) list.push(n);
+    list.forEach(function(n){
+      var p = n.parentElement; if (!p || /^(SCRIPT|STYLE)$/.test(p.tagName) || p.closest('[data-i18n],#rel,#typeP')) return;
+      if (n.__es !== undefined){ n.nodeValue = l === 'en' ? n.__es.replace(n.__k, XT[n.__k]) : n.__es; return; }
+      var k = n.nodeValue.trim(); if (l === 'en' && XT[k] !== undefined){ n.__es = n.nodeValue; n.__k = k; n.nodeValue = n.nodeValue.replace(k, XT[k]); }
+    });
+  }
+  function xattrs(l){
+    $$('[aria-label],[alt]').forEach(function(el){
+      ['aria-label','alt'].forEach(function(a){
+        var cur = el.getAttribute(a); if (cur === null) return;
+        var key = 'es_' + a.replace('-', ''); if (el.dataset[key] === undefined){ if (AT[cur] === undefined) return; el.dataset[key] = cur; }
+        el.setAttribute(a, l === 'en' ? AT[el.dataset[key]] : el.dataset[key]);
+      });
+    });
+  }
+  function xmeta(l){
+    var D = {es:['Sierra North diseña y construye el sistema que opera tu empresa: software, ingeniería y data a la medida. Chihuahua, México.','El cerebro detrás del negocio. Software, ingeniería y data a la medida.'], en:['Sierra North designs and builds the system that runs your business: custom software, engineering and data. Chihuahua, Mexico.','The brain behind the business. Custom software, engineering and data.']}[l];
+    var a = document.querySelector('meta[name=description]'), b = document.querySelector('meta[property="og:description"]');
+    if (a) a.content = D[0]; if (b) b.content = D[1];
   }
   $$('.lang button').forEach(function(b){ b.addEventListener('click', function(){ setLang(b.dataset.lang); }); });
 
@@ -851,7 +879,7 @@ footer .bot button{background:none;border:0;color:inherit;font:inherit;letter-sp
     $$('.links a').forEach(function(a){ if (a.dataset.go === page) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     if (scrollTo){ var el = document.getElementById(scrollTo); if (el) setTimeout(function(){ el.scrollIntoView({behavior: reduce ? 'auto' : 'smooth'}); }, 30); }
     else window.scrollTo(0, 0);
-    observe();
+    observe(); onScroll();
   }
   window.addEventListener('hashchange', route);
   document.addEventListener('click', function(e){
@@ -871,10 +899,13 @@ footer .bot button{background:none;border:0;color:inherit;font:inherit;letter-sp
   tick(); setInterval(tick, 30000);
 
   // ---------- boot sequence ----------
-  var BOOT = ['> sn-os v1.0 // vol. 1: el norte', '> coordenadas 28.66°N 106.12°W ........ <span class="bok">ok</span>', '> cargando 8,848 puntos de datos ...... <span class="bok">ok</span>', '> software · ingeniería · data ......... <span class="bok">ok</span>', '> estado: <span class="bok">200 OK</span> — sistema en línea'];
+  var BOOTS = {es:['> sn-os v1.0 // vol. 1: el norte', '> coordenadas 28.66°N 106.12°W .............. <span class="bok">ok</span>', '> cargando 8,848 puntos de datos ............ <span class="bok">ok</span>', '> software · ingeniería · data .............. <span class="bok">ok</span>', '> estado: <span class="bok">200 OK</span> — sistema en línea'],
+    en:['> sn-os v1.0 // vol. 1: the north', '> coordinates 28.66°N 106.12°W .............. <span class="bok">ok</span>', '> loading 8,848 data points ................. <span class="bok">ok</span>', '> software · engineering · data ............. <span class="bok">ok</span>', '> status: <span class="bok">200 OK</span> — system online']};
+  var bootN = 0;
+  function renderBoot(){ $('#boot').innerHTML = BOOTS[lang].slice(0, bootN).join('\n'); }
   (function boot(){
-    var el = $('#boot'); if (reduce){ el.innerHTML = BOOT.join('\n'); return; }
-    var i = 0; (function next(){ if (i >= BOOT.length) return; el.innerHTML += (i ? '\n' : '') + BOOT[i++]; setTimeout(next, 260 + Math.random() * 220); })();
+    if (reduce){ bootN = BOOTS.es.length; renderBoot(); return; }
+    (function next(){ if (bootN >= BOOTS.es.length) return; bootN++; renderBoot(); setTimeout(next, 260 + Math.random() * 220); })();
   })();
 
   // ---------- particle mountain (8,848 points) ----------
@@ -911,8 +942,10 @@ footer .bot button{background:none;border:0;color:inherit;font:inherit;letter-sp
   if (reduce){ pts.forEach(function(p){ p.x = p.X; p.y = p.Y; }); draw(0); } else requestAnimationFrame(draw);
 
   // ---------- icefall fragments ----------
-  var FR = ['ventas_FINAL_v3.xlsx','WhatsApp · 214 sin leer','“pregúntale a Juan”','pedidos (copia).xlsx','correo: RE: RE: RE: cotización','libreta azul','post-it en el monitor','inventario_2024?.xlsx','“ya lo había mandado”','PDF escaneado','grupo de WhatsApp “Ventas 🔥”','captura de pantalla 0412.png','“¿quién tiene la última versión?”','factura_pendiente.pdf'];
-  $('#ice').innerHTML = FR.map(function(f, i){ var x = (i * 37) % 78, y = (i * 53) % 84; return '<span class="frag' + (i % 5 === 2 ? ' warn' : '') + '" style="left:' + x + '%;top:' + y + '%;--dx:' + ((i % 3) - 1) * 14 + 'px;--dy:' + ((i % 4) - 1.5) * 10 + 'px;--dr:' + ((i % 5) - 2) * 2 + 'deg;animation-delay:-' + i * .7 + 's">' + f + '</span>'; }).join('');
+  var FRS = {es:['ventas_FINAL_v3.xlsx','WhatsApp · 214 sin leer','“pregúntale a Juan”','pedidos (copia).xlsx','correo: RE: RE: RE: cotización','libreta azul','post-it en el monitor','inventario_2024?.xlsx','“ya lo había mandado”','PDF escaneado','grupo de WhatsApp “Ventas 🔥”','captura de pantalla 0412.png','“¿quién tiene la última versión?”','factura_pendiente.pdf'],
+    en:['sales_FINAL_v3.xlsx','WhatsApp · 214 unread','“ask Juan”','orders (copy).xlsx','email: RE: RE: RE: quote','blue notebook','sticky note on the monitor','inventory_2024?.xlsx','“I already sent it”','scanned PDF','WhatsApp group “Sales 🔥”','screenshot 0412.png','“who has the latest version?”','invoice_pending.pdf']};
+  function renderFrags(){ $$('#ice .frag').forEach(function(el, i){ el.textContent = FRS[lang][i]; }); }
+  $('#ice').innerHTML = FRS.es.map(function(f, i){ var x = (i * 37) % 78, y = (i * 53) % 84; return '<span class="frag' + (i % 5 === 2 ? ' warn' : '') + '" style="left:' + x + '%;top:' + y + '%;--dx:' + ((i % 3) - 1) * 14 + 'px;--dy:' + ((i % 4) - 1.5) * 10 + 'px;--dr:' + ((i % 5) - 2) * 2 + 'deg;animation-delay:-' + i * .7 + 's">' + f + '</span>'; }).join('');
 
   // ---------- altimeter + O2 ----------
   var rail = $('#altiRail');
@@ -950,36 +983,39 @@ footer .bot button{background:none;border:0;color:inherit;font:inherit;letter-sp
   // terminal
   var tout = $('#tout'), tin = $('#tin');
   function say(s){ tout.innerHTML += s + '\n'; tout.scrollTop = tout.scrollHeight; }
-  function openTerm(){ $('#term').hidden = false; if (!tout.textContent) say('SN-OS v1.0 · Vol. 1: El Norte\nEscribe <span class="p">ayuda</span> para ver comandos.\n'); setTimeout(function(){ tin.focus(); }, 30); }
+  function tr(es, en){ return lang === 'en' ? en : es; }
+  function openTerm(){ $('#term').hidden = false; if (!tout.textContent) say(tr('SN-OS v1.0 · Vol. 1: El Norte\nEscribe <span class="p">ayuda</span> para ver comandos.\n', 'SN-OS v1.0 · Vol. 1: The North\nType <span class="p">help</span> to see commands.\n')); setTimeout(function(){ tin.focus(); }, 30); }
   var CMD = {
-    ayuda:function(){ return 'ls · cd [página] · cumbre · norte · whoami · ping · coords · ochomiles · 614 · 1776 · 1953 · 42 · sello · clear · exit'; },
+    ayuda:function(){ return tr('ls · cd [página] · cumbre · norte · whoami · ping · coords · ochomiles · 614 · 1776 · 1953 · 42 · sello · clear · exit', 'ls · cd [page] · summit · north · whoami · ping · coords · eightthousanders · 614 · 1776 · 1953 · 42 · seal · clear · exit'); },
     help:function(){ return CMD.ayuda(); },
-    ls:function(){ return 'inicio/  sistemas/  archivo/  manifiesto/  contacto/'; },
-    whoami:function(){ return 'visitante — dueño de una montaña de datos sin explotar (todavía).'; },
-    ping:function(){ return 'PING sierranorth · 64 bytes · 200 OK · sistema en línea'; },
+    ls:function(){ return tr('inicio/  sistemas/  archivo/  manifiesto/  contacto/', 'home/  systems/  archive/  manifesto/  contact/'); },
+    whoami:function(){ return tr('visitante — dueño de una montaña de datos sin explotar (todavía).', 'visitor — owner of an untapped mountain of data (yet).'); },
+    ping:function(){ return tr('PING sierranorth · 64 bytes · 200 OK · sistema en línea', 'PING sierranorth · 64 bytes · 200 OK · system online'); },
     coords:function(){ return '28.66°N 106.12°W · Chihuahua, MX'; },
-    norte:function(){ return '        N\n        ▲\n   O ◄  ●  ► E\n        ▼\n        S\nTodo apunta al norte.'; },
-    cumbre:function(){ location.hash = 't07'; return 'Subiendo a 8,848.86 m …'; },
-    ochomiles:function(){ return '14 montañas sobre 8,000 m. 14 sistemas por industria.\nConquistados: 01 / 14 → Despachos jurídicos.'; },
-    '614':function(){ return '614 = 0x266 = 0b1001100110. La lada de casa.'; },
-    '1776':function(){ return '4 de julio de 1776: el inicio de un imperio.\n250 años después, en 2026: la era de la inteligencia artificial.\n1776 = 0x6F0.'; },
-    '1953':function(){ return '29 de mayo de 1953: primer ascenso al Everest.\nTodo se conquista una vez por primera vez.'; },
-    '42':function(){ return 'La respuesta a la pregunta fundamental de la vida, el universo y todo lo demás.\nLa pregunta: ¿qué haría tu negocio con todos sus datos?'; },
-    '0':function(){ return '0 → 1. Todo sistema empieza en cero.'; }, '1':function(){ return '1. Uno solo. Un sistema.'; },
-    '12':function(){ return '12 columnas sostienen esta página.'; }, '23':function(){ return 'build 23.'; },
-    sello:function(){ return '印 — 北\nLo que sale sellado está terminado.'; },
+    norte:function(){ return tr('        N\n        ▲\n   O ◄  ●  ► E\n        ▼\n        S\nTodo apunta al norte.', '        N\n        ▲\n   W ◄  ●  ► E\n        ▼\n        S\nEverything points north.'); },
+    cumbre:function(){ location.hash = 't07'; return tr('Subiendo a 8,848.86 m …', 'Climbing to 8,848.86 m …'); },
+    ochomiles:function(){ return tr('14 montañas sobre 8,000 m. 14 sistemas por industria.\nConquistados: 01 / 14 → Despachos jurídicos.', '14 mountains above 8,000 m. 14 industry systems.\nConquered: 01 / 14 → Law firms.'); },
+    '614':function(){ return tr('614 = 0x266 = 0b1001100110. La lada de casa.', '614 = 0x266 = 0b1001100110. The home area code.'); },
+    '1776':function(){ return tr('4 de julio de 1776: el inicio de un imperio.\n250 años después, en 2026: la era de la inteligencia artificial.\n1776 = 0x6F0.', 'July 4, 1776: the start of an empire.\n250 years later, in 2026: the age of artificial intelligence.\n1776 = 0x6F0.'); },
+    '1953':function(){ return tr('29 de mayo de 1953: primer ascenso al Everest.\nTodo se conquista una vez por primera vez.', 'May 29, 1953: first ascent of Everest.\nEverything gets conquered for the first time once.'); },
+    '42':function(){ return tr('La respuesta a la pregunta fundamental de la vida, el universo y todo lo demás.\nLa pregunta: ¿qué haría tu negocio con todos sus datos?', 'The answer to the ultimate question of life, the universe and everything.\nThe question: what would your business do with all its data?'); },
+    '0':function(){ return tr('0 → 1. Todo sistema empieza en cero.', '0 → 1. Every system starts at zero.'); }, '1':function(){ return tr('1. Uno solo. Un sistema.', '1. Just one. One system.'); },
+    '12':function(){ return tr('12 columnas sostienen esta página.', '12 columns hold this page up.'); }, '23':function(){ return 'build 23.'; },
+    sello:function(){ return tr('印 — 北\nLo que sale sellado está terminado.', '印 — 北\nWhat comes out sealed is finished.'); },
     hanko:function(){ return CMD.sello(); },
-    sudo:function(){ return 'Permiso denegado. La cumbre no se compra, se sube.'; },
+    sudo:function(){ return tr('Permiso denegado. La cumbre no se compra, se sube.', 'Permission denied. The summit isn’t bought, it’s climbed.'); },
     clear:function(){ tout.innerHTML = ''; return null; }, exit:function(){ closeAll(); return null; }
   };
+  CMD.summit = CMD.cumbre; CMD.north = CMD.norte; CMD.eightthousanders = CMD.ochomiles; CMD.seal = CMD.sello;
+  var ROUTE_ALIAS = {home:'inicio', systems:'sistemas', archive:'archivo', contact:'contacto'};
   tin.addEventListener('keydown', function(e){
     if (e.key !== 'Enter') return;
     var v = tin.value.trim(); tin.value = ''; if (!v) return;
-    say('<span class="p">visitante@sierranorth:~$</span> ' + v.replace(/</g, '&lt;'));
+    say('<span class="p">' + tr('visitante', 'visitor') + '@sierranorth:~$</span> ' + v.replace(/</g, '&lt;'));
     var parts = v.toLowerCase().split(/\s+/), c = parts[0];
-    if (c === 'cd'){ var dest = (parts[1] || '~').replace(/\/$/, ''); if (dest === '~' || dest === '127.0.0.1') dest = 'inicio'; if (PAGES.indexOf(dest) > -1){ location.hash = dest; say('→ ' + dest); closeAll(); } else say('cd: ' + dest + ': no existe esa ruta (404)'); return; }
+    if (c === 'cd'){ var dest = (parts[1] || '~').replace(/\/$/, ''); if (dest === '~' || dest === '127.0.0.1') dest = 'inicio'; dest = ROUTE_ALIAS[dest] || dest; if (PAGES.indexOf(dest) > -1){ location.hash = dest; say('→ ' + dest); closeAll(); } else say(tr('cd: ' + dest + ': no existe esa ruta (404)', 'cd: ' + dest + ': no such route (404)')); return; }
     if (c === 'sudo') { say(CMD.sudo()); return; }
-    var r = CMD[c] ? CMD[c]() : c + ': comando no encontrado. Escribe ayuda.';
+    var r = CMD[c] ? CMD[c]() : tr(c + ': comando no encontrado. Escribe ayuda.', c + ': command not found. Type help.');
     if (r !== null) say(r + '\n');
   });
 
@@ -1023,17 +1059,21 @@ footer .bot button{background:none;border:0;color:inherit;font:inherit;letter-sp
     TRACKS.map(function(t, i){ return '<div class="rel-row' + (i === nextIdx ? ' next' : '') + '"><span class="num">' + t.n + '</span><span>' + t.es + ' · ' + t.page + '</span><span class="s">' + (i === nextIdx ? 'Próximo · ' : '') + t.date + '</span></div>'; }).join('') +
     '<div class="rel-row"><span class="num">∞</span><span>Contacto y formulario</span><span class="s">Siempre abierto</span></div>';
   $('#relView').innerHTML = '<option value="all">Versión completa (autor)</option>' + TRACKS.map(function(t, i){ return '<option value="' + i + '">Público el ' + t.date + ' (hasta ' + t.n + ')</option>'; }).join('');
+  function fmtDate(d){ var m = {es:['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'], en:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']}[lang], p = d.split('-'), mo = m[+p[1] - 1], dd = +p[2]; return lang === 'en' ? mo + ' ' + dd : dd + ' ' + mo; }
+  function veilHTML(i){ var t = TRACKS[i]; return '<div><div class="lbl">Track ' + t.n + ' · ' + t.alt.toLocaleString('en-US') + ' m</div><b>' + t[lang] + '</b><div class="lbl dim" style="margin-top:8px">' + (lang === 'en' ? 'Unlocks ' : 'Se desbloquea el ') + fmtDate(t.d) + '</div></div>'; }
+  function renderVeils(){ $$('.locked-veil').forEach(function(v){ v.innerHTML = veilHTML(+v.dataset.i); }); }
   $('#relHd').addEventListener('click', function(){ var o = $('#relBd').hidden; $('#relBd').hidden = !o; this.setAttribute('aria-expanded', o); });
   $('#relView').addEventListener('change', function(){
     var v = this.value;
     $$('[data-track]').forEach(function(sec){
       var i = +sec.dataset.track, veil = sec.querySelector('.locked-veil');
       var lock = v !== 'all' && i > +v && i !== 7;
-      if (lock && !veil){ veil = document.createElement('div'); veil.className = 'locked-veil'; veil.innerHTML = '<div><div class="lbl">Track ' + TRACKS[i].n + ' · ' + TRACKS[i].alt.toLocaleString('en-US') + ' m</div><b>' + TRACKS[i].es + '</b><div class="lbl dim" style="margin-top:8px">Se desbloquea el ' + TRACKS[i].date + '</div></div>'; sec.appendChild(veil); }
+      if (lock && !veil){ veil = document.createElement('div'); veil.className = 'locked-veil'; veil.dataset.i = i; veil.innerHTML = veilHTML(i); sec.appendChild(veil); }
       if (veil) veil.hidden = !lock;
     });
   });
 
+  try { if (localStorage.getItem('sn_lang') === 'en') setLang('en'); } catch (e) {}
   if (PUBLIC){ $('#rel').hidden = true; $('#typeP').hidden = true; $('#relView').value = String(Math.max(0, liveIdx)); $('#relView').dispatchEvent(new Event('change')); }
   route();
 })();
