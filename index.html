@@ -701,7 +701,7 @@ footer .bot button{background:none;border:0;color:inherit;font:inherit;letter-sp
 (function(){
   var root = document.documentElement; root.classList.add('js');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var WHATSAPP = ''; // '52614XXXXXXX' when the WhatsApp Business number is live
+  var WHATSAPP = '526147996975'; // Sierra North WhatsApp Business: +52 614 799 6975
   var EMAIL = 'marketingsierranorth@gmail.com';
   var $ = function(s, c){ return (c || document).querySelector(s); }, $$ = function(s, c){ return Array.prototype.slice.call((c || document).querySelectorAll(s)); };
 
@@ -836,7 +836,9 @@ footer .bot button{background:none;border:0;color:inherit;font:inherit;letter-sp
     ok.textContent = '200 · ' + (lang === 'en' ? 'Signal received. ' : 'Señal recibida. ') + (WHATSAPP ? (lang === 'en' ? 'WhatsApp opens with your message ready.' : 'Se abre WhatsApp con tu mensaje listo.') : (lang === 'en' ? 'Your email opens with the message ready. If not, write to ' : 'Se abre tu correo con el mensaje listo. Si no, escríbenos a ') + EMAIL + '.');
     setTimeout(function(){ window.location.href = url; }, 700);
   });
-  if (WHATSAPP){ $$('.wa').forEach(function(a){ a.href = 'https://wa.me/' + WHATSAPP; a.removeAttribute('aria-disabled'); a.target = '_blank'; a.querySelector('span').textContent = 'WhatsApp'; }); $$('.wa-text').forEach(function(s){ s.textContent = '+' + WHATSAPP; }); }
+  if (WHATSAPP){ var WA_PRETTY = '+52 614 799 6975';
+    $$('.wa').forEach(function(a){ a.href = 'https://wa.me/' + WHATSAPP; a.removeAttribute('aria-disabled'); a.target = '_blank'; a.rel = 'noopener'; var sp = a.querySelector('span'); sp.removeAttribute('data-i18n'); sp.textContent = 'WhatsApp'; });
+    $$('.wa-text').forEach(function(s){ s.removeAttribute('data-i18n'); var a = document.createElement('a'); a.href = 'https://wa.me/' + WHATSAPP; a.target = '_blank'; a.rel = 'noopener'; a.textContent = WA_PRETTY; a.style.color = 'inherit'; s.textContent = ''; s.appendChild(a); }); }
   $$('.wa[aria-disabled]').forEach(function(a){ a.addEventListener('click', function(e){ e.preventDefault(); }); });
 
   // ---------- routing ----------
