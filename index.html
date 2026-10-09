@@ -697,6 +697,173 @@ footer .bot button{background:none;border:0;color:inherit;font:inherit;letter-sp
   <div class="note" id="typeNote">A · Chakra Petch + JetBrains Mono</div>
 </div>
 
+<script>/*SNA-START*/
+/* Sierra North · ambient engine. Same E-rooted drone + wind as the original,
+   now evolving with altitude, with sparse events (bowls, ice, gusts, heartbeat). */
+var SNA = (function(){
+  var PENTA = [329.63, 392, 440, 493.88, 587.33, 659.26, 783.99, 880];   // E minor pentatonic
+  var AIRW = [.035, .02, .008];
+  function ss(a, b, x){ x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
+  function lerp(a, b, t){ return a + (b - a) * t; }
+  function mkNoise(ctx, secs, mode){
+    var n = Math.floor(ctx.sampleRate * secs), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0), last = 0;
+    for (var k = 0; k < n; k++){
+      if (mode === 'brown'){ last = (last + .02 * (Math.random() * 2 - 1)) / 1.02; d[k] = last * 3.5; }
+      else d[k] = Math.random() * 2 - 1;
+    }
+    return buf;
+  }
+  function impulse(ctx, secs, pow){
+    var n = Math.floor(ctx.sampleRate * secs), buf = ctx.createBuffer(2, n, ctx.sampleRate);
+    for (var c = 0; c < 2; c++){ var d = buf.getChannelData(c); for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, pow); }
+    return buf;
+  }
+
+  function build(ctx, dest, rnd){
+    rnd = rnd || Math.random;
+    var e = {ctx: ctx, rnd: rnd, p: 0, T: {}};
+
+    // ---- buses ----
+    var master = ctx.createGain(); master.gain.value = 0;
+    var comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.knee.value = 14; comp.ratio.value = 3; comp.attack.value = .01; comp.release.value = .35;
+    var bus = ctx.createGain(); bus.connect(comp); comp.connect(master); master.connect(dest);
+    var verb = ctx.createConvolver(); verb.buffer = impulse(ctx, 3.6, 2.4);
+    var wet = ctx.createGain(); wet.gain.value = .6; verb.connect(wet); wet.connect(bus);
+    var send = ctx.createGain(); send.connect(verb);
+    e.master = master;
+
+    function pan(v){ if (ctx.createStereoPanner){ var s = ctx.createStereoPanner(); s.pan.value = v; return s; } return ctx.createGain(); }
+    var whiteBuf = mkNoise(ctx, 2, 'white'), brownBuf = mkNoise(ctx, 2, 'brown');
+
+    // ---- drone: same notes and levels as the original, now breathing and drifting ----
+    var breath = ctx.createGain(); breath.gain.value = .9; breath.connect(bus);
+    var bl = ctx.createOscillator(), bg = ctx.createGain(); bl.frequency.value = .035; bg.gain.value = .1; bl.connect(bg); bg.connect(breath.gain); bl.start();
+    e.drone = [[41, .22, .043, 3], [82.4, .1, .061, 5], [123.7, .04, .037, 6]].map(function(a){
+      var o = ctx.createOscillator(), g = ctx.createGain(), l = ctx.createOscillator(), lg = ctx.createGain();
+      o.frequency.value = a[0]; g.gain.value = a[1]; l.frequency.value = a[2]; lg.gain.value = a[3];
+      l.connect(lg); lg.connect(o.detune); o.connect(g); g.connect(breath); o.start(); l.start(); return g;
+    });
+    // thin-air partials that fade in with altitude
+    e.air = [246.94, 329.63, 493.88].map(function(f, i){
+      var o = ctx.createOscillator(), g = ctx.createGain(), tl = ctx.createOscillator(), tg = ctx.createGain(), am = ctx.createGain();
+      o.frequency.value = f; g.gain.value = 0; am.gain.value = i ? .75 : 1; tl.frequency.value = .11 + i * .07; tg.gain.value = i ? .25 : 0;
+      tl.connect(tg); tg.connect(am.gain); o.connect(am); am.connect(g); g.connect(bus); g.connect(send); o.start(); tl.start(); return g;
+    });
+
+    // ---- wind ----
+    var w = ctx.createBufferSource(), wl = ctx.createBiquadFilter(), wg = ctx.createGain();
+    w.buffer = brownBuf; w.loop = true; wl.type = 'lowpass'; wl.frequency.value = 260; wg.gain.value = 1; w.connect(wl); wl.connect(wg); wg.connect(bus); w.start();
+    var cl = ctx.createOscillator(), cg = ctx.createGain(); cl.frequency.value = .07; cg.gain.value = 70; cl.connect(cg); cg.connect(wl.frequency); cl.start();
+    // gust layer
+    var gs = ctx.createBufferSource(), gb = ctx.createBiquadFilter(), gg = ctx.createGain();
+    gs.buffer = whiteBuf; gs.loop = true; gb.type = 'bandpass'; gb.frequency.value = 500; gb.Q.value = .7; gg.gain.value = 0; gs.connect(gb); gb.connect(gg); gg.connect(bus); gs.start();
+    // thin-air hiss (death zone)
+    var hs = ctx.createBufferSource(), hf = ctx.createBiquadFilter(), hg = ctx.createGain();
+    hs.buffer = whiteBuf; hs.loop = true; hf.type = 'highpass'; hf.frequency.value = 3000; hg.gain.value = 0; hs.connect(hf); hf.connect(hg); hg.connect(bus); hs.start();
+
+    // ---- scene (0 = base camp ... 1 = summit) ----
+    e.setScene = function(p, now){
+      e.p = p; var tc = .9;
+      e.drone[0].gain.setTargetAtTime(lerp(.22, .11, ss(0, .85, p)) + ss(.95, 1, p) * .07, now, tc);
+      e.drone[1].gain.setTargetAtTime(lerp(.1, .07, ss(.3, .85, p)), now, tc);
+      var air = ss(.3, .85, p) + ss(.95, 1, p) * .8;
+      e.air.forEach(function(g, i){ g.gain.setTargetAtTime(AIRW[i] * air, now, tc * 1.5); });
+      wl.frequency.setTargetAtTime(260 + p * 190, now, tc);
+      wg.gain.setTargetAtTime(1 + p * .45 - ss(.95, 1, p) * .5, now, tc);
+      hg.gain.setTargetAtTime(.012 * ss(.78, .9, p) * (1 - ss(.95, 1, p)), now, tc);
+    };
+
+    // ---- voices ----
+    function bell(t, f, g, dec, pn){
+      var out = pan(pn || 0); out.connect(bus); out.connect(send);
+      [[1, 1, 1], [2.76, .38, .62], [5.4, .14, .35], [1.004, .6, 1]].forEach(function(q){
+        var o = ctx.createOscillator(), a = ctx.createGain(); o.type = 'sine'; o.frequency.value = f * q[0];
+        a.gain.setValueAtTime(.0001, t); a.gain.linearRampToValueAtTime(g * q[1], t + .008); a.gain.exponentialRampToValueAtTime(.0001, t + dec * q[2]);
+        o.connect(a); a.connect(out); o.start(t); o.stop(t + dec * q[2] + .1);
+      });
+    }
+    function creak(t){
+      var r = rnd, n = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), a = ctx.createGain(), out = pan(r() * 1.2 - .6);
+      n.buffer = whiteBuf; bp.type = 'bandpass'; bp.Q.value = 10;
+      bp.frequency.setValueAtTime(1800 + r() * 600, t); bp.frequency.exponentialRampToValueAtTime(380 + r() * 150, t + .55);
+      a.gain.setValueAtTime(0, t);
+      for (var i = 0; i < 5; i++){ a.gain.linearRampToValueAtTime(.05 * (.5 + .5 * r()), t + i * .1 + .02); a.gain.linearRampToValueAtTime(.004, t + i * .1 + .07); }
+      a.gain.linearRampToValueAtTime(0, t + .62);
+      n.connect(bp); bp.connect(a); a.connect(out); out.connect(bus); out.connect(send); n.start(t, r() * 1.2); n.stop(t + .7);
+    }
+    function rumble(t){
+      var n = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), a = ctx.createGain();
+      n.buffer = brownBuf; lp.type = 'lowpass'; lp.frequency.value = 130; a.gain.setValueAtTime(0, t); a.gain.linearRampToValueAtTime(.14, t + 1.6); a.gain.linearRampToValueAtTime(0, t + 5.5);
+      n.connect(lp); lp.connect(a); a.connect(bus); a.connect(send); n.start(t); n.stop(t + 6);
+    }
+    function thump(t, amp, f0, f1, dec){
+      var o = ctx.createOscillator(), a = ctx.createGain(); o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + .14);
+      a.gain.setValueAtTime(0, t); a.gain.linearRampToValueAtTime(amp, t + .004); a.gain.exponentialRampToValueAtTime(.0005, t + dec);
+      o.connect(a); a.connect(bus); o.start(t); o.stop(t + dec + .05);
+    }
+    function heart(t, amp){ thump(t, amp, 62, 36, .22); thump(t + .19, amp * .7, 52, 32, .2); }
+    function gust(t, d, amp){
+      gb.frequency.setValueAtTime(380, t); gb.frequency.exponentialRampToValueAtTime(780 + rnd() * 300, t + d * .45); gb.frequency.exponentialRampToValueAtTime(420, t + d);
+      gg.gain.setValueAtTime(0, t); gg.gain.linearRampToValueAtTime(amp, t + d * .4); gg.gain.linearRampToValueAtTime(0, t + d);
+    }
+    function blip(t, f0, f1, amp, dur){
+      var o = ctx.createOscillator(), a = ctx.createGain(); o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+      a.gain.setValueAtTime(0, t); a.gain.linearRampToValueAtTime(amp, t + .003); a.gain.exponentialRampToValueAtTime(.0005, t + dur);
+      o.connect(a); a.connect(bus); a.connect(send); o.start(t); o.stop(t + dur + .05);
+    }
+
+    // ---- scheduler: call every ~500 ms with a ~2.5 s look-ahead ----
+    e.step = function(now, until){
+      var T = e.T, p = e.p, r = rnd, i;
+      if (T.bell === undefined){ T.bell = now + 6 + r() * 6; T.creak = now + 9 + r() * 8; T.gust = now + 2 + r() * 3; T.beat = now + .5; T.rumble = now + 28 + r() * 20; }
+      while (T.gust < until){ var d = 5 + r() * 5; if (T.gust >= now - .05) gust(T.gust, d, .035 + r() * .04 + p * .03); T.gust += d + 3 + r() * 8; }
+      while (T.bell < until){
+        if (T.bell >= now - .05 && !(p > .8 && p < .96 && r() < .5)){
+          var lo = p < .5 ? 0 : 2, hi = p < .5 ? 4 : 7, idx = lo + Math.floor(r() * (hi - lo + 1));
+          bell(T.bell, PENTA[idx], .03 + r() * .02, 5 + r() * 3, r() * 1.2 - .6);
+        }
+        T.bell += (p > .8 && p < .96 ? 20 : 10) + r() * 16;
+      }
+      while (T.creak < until){
+        if (T.creak >= now - .05) creak(T.creak);
+        T.creak += (p > .06 && p < .28 ? 8 + r() * 8 : 28 + r() * 24);
+      }
+      while (T.rumble < until){ if (T.rumble >= now - .05 && p > .2) rumble(T.rumble); T.rumble += 40 + r() * 40; }
+      if (p > .78 && p < .97){
+        var bpm = 58 + 38 * ss(.8, .93, p), amp = .2 * ss(.78, .83, p) * (1 - ss(.94, .97, p));
+        while (T.beat < until){ if (T.beat >= now - .05) heart(T.beat, amp); T.beat += 60 / bpm; }
+      } else T.beat = Math.max(T.beat, now);
+    };
+
+    // ---- markers and interface sounds ----
+    e.camp = function(idx, t){
+      if (idx >= 7){ bell(t, PENTA[5], .07, 7, -.2); bell(t + .05, 987.77, .045, 7, .25); bell(t + .1, 329.63, .06, 8, 0); }
+      else bell(t, PENTA[Math.max(0, Math.min(6, idx))], .06, 5.5, 0);
+    };
+    e.uiAt = function(kind, t){
+      if (kind === 'tick') blip(t, 1900, 1300, .035, .045);
+      else if (kind === 'key') blip(t, 1500 + rnd() * 400, 1100, .018, .03);
+      else if (kind === 'lang'){ blip(t, 1500, 1300, .03, .05); blip(t + .075, 2000, 1700, .03, .06); }
+      else if (kind === 'open'){
+        var o = ctx.createOscillator(), a = ctx.createGain(), lp = ctx.createBiquadFilter(); o.type = 'triangle'; lp.type = 'lowpass'; lp.frequency.value = 500;
+        o.frequency.setValueAtTime(98, t); o.frequency.exponentialRampToValueAtTime(147, t + .45);
+        a.gain.setValueAtTime(0, t); a.gain.linearRampToValueAtTime(.07, t + .18); a.gain.linearRampToValueAtTime(0, t + .55);
+        o.connect(lp); lp.connect(a); a.connect(bus); a.connect(send); o.start(t); o.stop(t + .6);
+        bell(t + .12, PENTA[5], .018, 3, 0);
+      }
+      else if (kind === 'stamp'){
+        thump(t, .28, 90, 38, .28);
+        var n = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), a2 = ctx.createGain(); n.buffer = whiteBuf; bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 1.2;
+        a2.gain.setValueAtTime(.09, t); a2.gain.exponentialRampToValueAtTime(.0005, t + .07); n.connect(bp); bp.connect(a2); a2.connect(bus); n.start(t); n.stop(t + .1);
+        bell(t + .03, 164.81, .07, 3.2, 0);
+      }
+    };
+    e.ui = function(kind){ e.uiAt(kind, ctx.currentTime + .005); };
+    return e;
+  }
+  return {build: build, PENTA: PENTA};
+})();
+/*SNA-END*/</script>
 <script>
 (function(){
   var root = document.documentElement; root.classList.add('js');
@@ -858,7 +1025,7 @@ footer .bot button{background:none;border:0;color:inherit;font:inherit;letter-sp
     if (!name){ f.querySelector('[name=nombre]').focus(); return; }
     var txt = ['Hola Sierra North, soy ' + name + (d.get('empresa') ? ' de ' + d.get('empresa') : '') + '.', d.get('giro') ? 'Giro: ' + d.get('giro') + '.' : '', d.get('mensaje') ? 'Quiero resolver: ' + d.get('mensaje') : '', d.get('telefono') ? 'Contacto: ' + d.get('telefono') : ''].filter(Boolean).join('\n');
     var url = WHATSAPP ? 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(txt) : 'mailto:' + EMAIL + '?subject=' + encodeURIComponent('Diagnóstico · ' + name) + '&body=' + encodeURIComponent(txt);
-    var st = f.querySelector('.hanko'); st.hidden = false;
+    var st = f.querySelector('.hanko'); st.hidden = false; sfx('stamp');
     if (!reduce) st.animate([{transform:'rotate(-30deg) scale(2.2)', opacity:0}, {transform:'rotate(-12deg) scale(1)', opacity:1}], {duration:380, easing:'cubic-bezier(.5,0,.75,0)'});
     var ok = f.querySelector('.ok'); ok.hidden = false;
     ok.textContent = '200 · ' + (lang === 'en' ? 'Signal received. ' : 'Señal recibida. ') + (WHATSAPP ? (lang === 'en' ? 'WhatsApp opens with your message ready.' : 'Se abre WhatsApp con tu mensaje listo.') : (lang === 'en' ? 'Your email opens with the message ready. If not, write to ' : 'Se abre tu correo con el mensaje listo. Si no, escríbenos a ') + EMAIL + '.');
@@ -879,6 +1046,7 @@ footer .bot button{background:none;border:0;color:inherit;font:inherit;letter-sp
     $$('.links a').forEach(function(a){ if (a.dataset.go === page) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     if (scrollTo){ var el = document.getElementById(scrollTo); if (el) setTimeout(function(){ el.scrollIntoView({behavior: reduce ? 'auto' : 'smooth'}); }, 30); }
     else window.scrollTo(0, 0);
+    curPage = page; pushScene(true);
     observe(); onScroll();
   }
   window.addEventListener('hashchange', route);
@@ -957,6 +1125,9 @@ footer .bot button{background:none;border:0;color:inherit;font:inherit;letter-sp
     var a0 = TRACKS[idx].alt, a1 = idx < 7 ? TRACKS[idx + 1].alt : a0, alt = a0 + (a1 - a0) * frac;
     $('#altiRead').textContent = (idx === 7 ? '8,848.86' : Math.round(alt).toLocaleString('en-US')) + ' m';
     $('#altiCamp').textContent = TRACKS[idx][lang];
+    altP = (idx + frac) / 7;
+    if (idx !== lastCamp){ if (lastCamp !== -1 && E && soundOn && actx.currentTime - lastCampT > 1.2){ E.camp(idx, actx.currentTime + .02); lastCampT = actx.currentTime; } lastCamp = idx; }
+    pushScene();
     $('#altiFill').style.height = ((idx + frac) / 7 * 100) + '%';
     var d = $('#t06').getBoundingClientRect(), p = Math.min(1, Math.max(0, (window.innerHeight - d.top) / (d.height + window.innerHeight * .2)));
     var altD = 8000 + p * 848.86, o2 = Math.round(100 - p * 67);
@@ -1027,21 +1198,32 @@ footer .bot button{background:none;border:0;color:inherit;font:inherit;letter-sp
     document.addEventListener('pointerleave', function(){ cp.style.opacity = 0; });
   }
 
-  // ambient drone (starts on click)
-  var actx = null, master = null;
+  // ambient engine (starts on click): evolving drone + events, driven by altitude (see SNA)
+  var actx = null, E = null, soundOn = false, stepT = null, altP = 0, lastCamp = -1, lastCampT = 0, lastPush = 0, curPage = 'inicio';
+  function sceneP(){ return curPage === 'inicio' ? altP : (curPage === 'contacto' ? 1 : .12); }
+  function pushScene(force){ if (!E || !soundOn) return; var n = performance.now(); if (!force && n - lastPush < 200) return; lastPush = n; E.setScene(sceneP(), actx.currentTime); }
+  function sfx(k){ if (E && soundOn) E.ui(k); }
   $('#sound').addEventListener('click', function(){
-    var on = this.getAttribute('aria-pressed') !== 'true';
+    var on = this.getAttribute('aria-pressed') !== 'true'; soundOn = on;
     this.setAttribute('aria-pressed', on); $('#wave').setAttribute('opacity', on ? 1 : .35);
     try {
-      if (on && !actx){
-        actx = new (window.AudioContext || window.webkitAudioContext)(); master = actx.createGain(); master.gain.value = 0; master.connect(actx.destination);
-        [41, 82.4, 123.7].forEach(function(f, i){ var o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = f; g.gain.value = [.22, .1, .04][i]; o.connect(g); g.connect(master); o.start(); });
-        var buf = actx.createBuffer(1, actx.sampleRate * 2, actx.sampleRate), d = buf.getChannelData(0), last = 0; for (var k = 0; k < d.length; k++){ last = (last + .02 * (Math.random() * 2 - 1)) / 1.02; d[k] = last * 3.5; }
-        var n = actx.createBufferSource(), lp = actx.createBiquadFilter(); n.buffer = buf; n.loop = true; lp.type = 'lowpass'; lp.frequency.value = 260; n.connect(lp); lp.connect(master); n.start();
+      if (on && !actx){ actx = new (window.AudioContext || window.webkitAudioContext)(); E = SNA.build(actx, actx.destination); }
+      if (actx){
+        if (actx.state === 'suspended') actx.resume();
+        var now = actx.currentTime; E.master.gain.cancelScheduledValues(now); E.master.gain.setValueAtTime(E.master.gain.value, now); E.master.gain.linearRampToValueAtTime(on ? .44 : 0, now + 1.2);
+        clearInterval(stepT);
+        if (on){ E.T = {}; E.setScene(sceneP(), now); E.step(now, now + 2.5); stepT = setInterval(function(){ var n = actx.currentTime; E.step(n, n + 2.5); }, 500); }
       }
-      if (actx) master.gain.linearRampToValueAtTime(on ? .5 : 0, actx.currentTime + 1.2);
     } catch (err) {}
   });
+  document.addEventListener('click', function(e){
+    if (!soundOn) return;
+    var t = e.target.closest('a[data-go],[data-track-go],.btn,.lang button,.icon-btn,.leadform label,.tl'); if (!t) return;
+    if (t.id === 'sound') return;
+    if (t.id === 'openTracks' || t.id === 'verBtn') { sfx('open'); return; }
+    sfx(t.closest('.lang') ? 'lang' : 'tick');
+  });
+  $('#tin').addEventListener('keydown', function(e){ if (e.key !== 'Enter') sfx('key'); else sfx('tick'); });
 
   // ---------- typography switcher ----------
   var TN = {A:'A · Chakra Petch + JetBrains Mono (técnica)', B:'B · Michroma + IBM Plex Sans (HUD ancha)', C:'C · Bodoni Moda + JetBrains Mono (lujo)', D:'D · Michroma + JetBrains Mono (HUD + mono)'};
