@@ -308,6 +308,14 @@ fieldset{border:0;padding:0;margin:0}
 .lex div{background:var(--black);padding:26px;display:grid;gap:10px}
 .lex b{font-family:var(--f-head);font-size:calc(24px * var(--head-scale));text-transform:var(--head-case)}
 .lex span{color:#CFCBC4;font-size:14.5px}
+.adgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin-top:30px;max-width:1040px}
+.ad{margin:0;border:1px solid var(--line-2);background:#050505}
+.advid{aspect-ratio:4/5;background:#000}
+.advid video{width:100%;height:100%;display:block;object-fit:cover;background:#000}
+.ad figcaption{padding:20px 22px 24px;display:grid;gap:8px;border-top:1px solid var(--line)}
+.ad figcaption b{font-family:var(--f-head);font-size:calc(22px * var(--head-scale));text-transform:var(--head-case)}
+.ad figcaption span:not(.lbl){color:#CFCBC4;font-size:14.5px}
+@media (max-width:700px){.adgrid{grid-template-columns:1fr}}
 .vars{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
 .vars span{border:1px solid var(--line);padding:6px 10px;color:var(--silver);font:11.5px var(--f-mono)}
 .faq{border-top:1px solid var(--line)}
@@ -621,6 +629,20 @@ footer .bot button{background:none;border:0;color:inherit;font:inherit;letter-sp
       <div><b data-i18n="lx6t">El rojo</b><span data-i18n="lx6">Solo aparece donde hay que actuar.</span></div>
     </div>
   </section>
+  <section class="wrap" style="padding-block:20px 100px" id="publicidad">
+    <span class="lbl gold rv" data-i18n="ads_k">Publicidad</span>
+    <p class="lead rv" style="margin-top:18px;max-width:640px" data-i18n="ads_p">Dos piezas que dicen lo que hacemos. Sonido recomendado.</p>
+    <div class="adgrid">
+      <figure class="ad rv">
+        <div class="advid"><video controls preload="none" playsinline poster="video/intro.jpg" src="video/intro.mp4" aria-label="Sierra North — video de presentación (58 segundos)"></video></div>
+        <figcaption><span class="lbl gold">Anuncio 01 · 0:58</span><b data-i18n="ad1t">Intro · El reporte</b><span data-i18n="ad1">Una ciudad que nunca duerme, datos que nadie lee y un llamado: ahora es tu turno.</span></figcaption>
+      </figure>
+      <figure class="ad rv">
+        <div class="advid"><video controls preload="none" playsinline poster="video/billboard.jpg" src="video/billboard.mp4" aria-label="Sierra North — video del espectacular (22 segundos)"></video></div>
+        <figcaption><span class="lbl gold">Anuncio 02 · 0:22</span><b data-i18n="ad2t">Espectacular · Hecho aquí</b><span data-i18n="ad2">Un espectacular en la sierra, de noche y bajo tormenta. Software, ingeniería y data. Made here. Built everywhere.</span></figcaption>
+      </figure>
+    </div>
+  </section>
 </div>
 
 <!-- ============================ NOSOTROS ============================ -->
@@ -902,6 +924,7 @@ var SNA = (function(){
     arc_k:'Archive · Concepts', arc_h:'What we have designed.', arc_p:'Concepts by industry. Each one is the design of a real system, ready to fit a business.',
     a1k:'Eight-thousander 01 · Law firms', a1:'Web and mobile app: case files, deadlines, court listings, CFDI invoicing and leads.', a1_status:'Core platform live · first expeditions underway', a2k:'Eight-thousander 01 · Invoicing', a2t:'Fees with CFDI', a2:'VAT, income-tax and VAT withholdings calculated on every invoice.', a3k:'Website · Fictional firm', a3:'High-end site with online booking connected to the system.', a4s:'Eight-thousander 02 · In design', a4k:'Next climb', a4t:'Manufacturing & CNC', a4:'Work orders, production, inventory and quality.',
     man_k:'Manifesto', man_h:'Sierra. North.', man_q:'The sierra is nature at its largest scale. And a system of thousands of variables.', man_p1:'Sierra North was born from respecting that immensity: the mountain’s and the data’s that lives in it. Humidity, temperature, altitude, species, populations, aquifers. All measurable, all connected.', man_p2:'North is identity: border land, extreme heat and extreme cold, people who build big. A more demanding way of doing things.',
+    ads_k:'Advertising', ads_p:'Two pieces that say what we do. Sound recommended.', ad1t:'Intro · The report', ad1:'A city that never sleeps, data nobody reads, and a call: now it’s your turn.', ad2t:'Billboard · Made here', ad2:'A billboard on the sierra, at night, in a storm. Software, engineering and data. Made here. Built everywhere.',
     lex_k:'The symbols', lx1t:'Hexagon · The hive', lx1:'Many departments, each with its goal and engineering protocol, working as one organism.', lx2t:'Mountain · The mine', lx2:'Every business sits on a mountain of data. It must be mined and optimized to the fullest.', lx3t:'Three peaks', lx3:'Software, engineering and data. None reaches the summit alone.', lx4t:'The seal', lx4:'The signature. What leaves sealed is finished and backed.', lx5t:'Black, white, silver and gold', lx5:'The permanent palette. Eras change; the palette stays.', lx6t:'Red', lx6:'It only appears where you need to act.',
     nos_k:'About', nos_h:'We don’t sell websites. We sell the future.', nos_p:'Sierra North is a software engineering company founded in 2026 in Chihuahua, Mexico, led by Engr. Castillo. The core platform is active, with the first expeditions already underway.',
     nos_p1:'The internet gave every business a storefront. That was the first digital dream: get online, have a website, exist on the network.',
@@ -925,8 +948,8 @@ var SNA = (function(){
     try { localStorage.setItem('sn_lang', l); } catch (e) {}
   }
   // static text nodes and attributes without data-i18n: ES original -> EN
-  var XT = {'Campo base':'Base camp','Hielo':'Ice','Oficina':'Office','Cada pieza en su lugar':'Every piece in its place','Campamento II · 6,400 m':'Camp II · 6,400 m','Todo el camino, visto desde arriba':'The whole route, seen from above','Chihuahua, México':'Chihuahua, Mexico','Sistemas':'Systems','Archivo':'Archive','Norte':'North','Contacto':'Contact','humedad 18%':'humidity 18%','altitud 8,848.86 m':'altitude 8,848.86 m','especies ∞':'species ∞','acuíferos':'aquifers','poblaciones':'populations','Vol. 1 · El Norte — Tracklist':'Vol. 1 · The North — Tracklist','visitante@sierranorth:~$':'visitor@sierranorth:~$'};
-  var AT = {'Coordenadas':'Coordinates','Principal':'Main','Idioma':'Language','Sonido ambiental':'Ambient sound','Fragmentos de información dispersa':'Scattered pieces of information','14 industrias, 1 sistema en vivo':'14 industries, 1 live system','Siete principios':'Seven principles','Despacho OS: dashboard para despachos jurídicos':'Despacho OS: dashboard for law firms','Despacho OS en escritorio':'Despacho OS on a desktop','Factura de honorarios con retenciones en Despacho OS':'Fee invoice with withholdings in Despacho OS','Sitio web conceptual de despacho':'Concept website for a law firm','Cerrar':'Close','Comando':'Command'};
+  var XT = {'Campo base':'Base camp','Hielo':'Ice','Oficina':'Office','Cada pieza en su lugar':'Every piece in its place','Campamento II · 6,400 m':'Camp II · 6,400 m','Todo el camino, visto desde arriba':'The whole route, seen from above','Chihuahua, México':'Chihuahua, Mexico','Sistemas':'Systems','Archivo':'Archive','Norte':'North','Contacto':'Contact','humedad 18%':'humidity 18%','altitud 8,848.86 m':'altitude 8,848.86 m','especies ∞':'species ∞','acuíferos':'aquifers','poblaciones':'populations','Vol. 1 · El Norte — Tracklist':'Vol. 1 · The North — Tracklist','visitante@sierranorth:~$':'visitor@sierranorth:~$','Anuncio 01 · 0:58':'Ad 01 · 0:58','Anuncio 02 · 0:22':'Ad 02 · 0:22'};
+  var AT = {'Coordenadas':'Coordinates','Principal':'Main','Idioma':'Language','Sonido ambiental':'Ambient sound','Fragmentos de información dispersa':'Scattered pieces of information','14 industrias, 1 sistema en vivo':'14 industries, 1 live system','Siete principios':'Seven principles','Despacho OS: dashboard para despachos jurídicos':'Despacho OS: dashboard for law firms','Despacho OS en escritorio':'Despacho OS on a desktop','Factura de honorarios con retenciones en Despacho OS':'Fee invoice with withholdings in Despacho OS','Sitio web conceptual de despacho':'Concept website for a law firm','Cerrar':'Close','Comando':'Command','Sierra North — video de presentación (58 segundos)':'Sierra North — intro video (58 seconds)','Sierra North — video del espectacular (22 segundos)':'Sierra North — billboard video (22 seconds)'};
   function xlate(l){
     var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), n, list = [];
     while ((n = w.nextNode())) list.push(n);
@@ -1231,6 +1254,18 @@ var SNA = (function(){
     if (t.id === 'openTracks' || t.id === 'verBtn') { sfx('open'); return; }
     sfx(t.closest('.lang') ? 'lang' : 'tick');
   });
+  // ads: the ambient bed steps aside while a video plays
+  (function(){
+    var vids = $$('.advid video');
+    function duck(on){ if (!E || !soundOn) return; var n = actx.currentTime; E.master.gain.cancelScheduledValues(n); E.master.gain.setValueAtTime(E.master.gain.value, n); E.master.gain.linearRampToValueAtTime(on ? 0 : .44, n + .6); }
+    function anyPlaying(){ return vids.some(function(o){ return !o.paused && !o.ended; }); }
+    vids.forEach(function(v){
+      v.addEventListener('play', function(){ vids.forEach(function(o){ if (o !== v) o.pause(); }); duck(true); });
+      v.addEventListener('pause', function(){ if (!anyPlaying()) duck(false); });
+      v.addEventListener('ended', function(){ duck(false); });
+    });
+    window.addEventListener('hashchange', function(){ vids.forEach(function(o){ o.pause(); }); });
+  })();
   $('#tin').addEventListener('keydown', function(e){ if (e.key !== 'Enter') sfx('key'); else sfx('tick'); });
 
   
